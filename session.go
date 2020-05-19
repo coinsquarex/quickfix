@@ -229,6 +229,7 @@ func (s *session) queueForSend(msg *Message) error {
 func (s *session) send(msg *Message) error {
 	return s.sendInReplyTo(msg, nil)
 }
+
 func (s *session) sendInReplyTo(msg *Message, inReplyTo *Message) error {
 	if !s.IsLoggedOn() {
 		return s.queueForSend(msg)
@@ -261,6 +262,7 @@ func (s *session) dropAndReset() error {
 func (s *session) dropAndSend(msg *Message) error {
 	return s.dropAndSendInReplyTo(msg, nil)
 }
+
 func (s *session) dropAndSendInReplyTo(msg *Message, inReplyTo *Message) error {
 	s.sendMutex.Lock()
 	defer s.sendMutex.Unlock()
@@ -316,6 +318,9 @@ func (s *session) prepMessageForSend(msg *Message, inReplyTo *Message) (msgBytes
 
 	msgBytes = msg.build()
 	err = s.persist(seqNum, msgBytes)
+	if err != nil {
+		s.log.OnEventf("failed to persist msg: [%d] %s", seqNum, msgBytes)
+	}
 
 	return
 }
@@ -345,6 +350,7 @@ func (s *session) dropQueued() {
 func (s *session) sendBytes(msg []byte) {
 	s.log.OnOutgoing(msg)
 	s.messageOut <- msg
+	// reset the state timer to expire after heartbt interval
 	s.stateTimer.Reset(s.HeartBtInt)
 }
 
@@ -407,8 +413,10 @@ func (s *session) handleLogon(msg *Message) error {
 
 		if s.RefreshOnLogon {
 			if err := s.store.Refresh(); err != nil {
+				s.log.OnEventf("Failed to refresh message store: %+v", err.Error())
 				return err
 			}
+			s.log.OnEvent("Message store refreshed")
 		}
 	}
 
@@ -515,6 +523,7 @@ func (s *session) verifySelect(msg *Message, checkTooHigh bool, checkTooLow bool
 	return s.fromCallback(msg)
 }
 
+// This is where the session interfaces with injected user application
 func (s *session) fromCallback(msg *Message) MessageRejectError {
 	msgType, err := msg.Header.GetBytes(tagMsgType)
 	if err != nil {
@@ -724,8 +733,10 @@ func (s *session) onAdmin(msg interface{}) {
 }
 
 func (s *session) run() {
+	// calls Start on session stateMachine (sets to latent state)
 	s.Start(s)
 
+	// Timer that triggers after 1 second
 	s.stateTimer = internal.NewEventTimer(func() { s.sessionEvent <- internal.NeedHeartbeat })
 	s.peerTimer = internal.NewEventTimer(func() { s.sessionEvent <- internal.PeerTimeout })
 	ticker := time.NewTicker(time.Second)
@@ -736,12 +747,16 @@ func (s *session) run() {
 		ticker.Stop()
 	}()
 
+	// While session isn't stopped, keep processing events
+	// find out what makes s.Stopped() return true which would
+	// cause run() to return
 	for !s.Stopped() {
 		select {
 
 		case msg := <-s.admin:
 			s.onAdmin(msg)
 
+		// queueForSend() publishes true when there are messages that need to be sent
 		case <-s.messageEvent:
 			s.SendAppMessages(s)
 
@@ -752,9 +767,11 @@ func (s *session) run() {
 				s.Incoming(s, fixIn)
 			}
 
+		// either peerTimeout, needHeartbeat, logon/logoutTimer
 		case evt := <-s.sessionEvent:
 			s.Timeout(s, evt)
 
+		// check session time every second
 		case now := <-ticker.C:
 			s.CheckSessionTime(s, now)
 		}

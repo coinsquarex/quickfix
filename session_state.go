@@ -14,6 +14,7 @@ type stateMachine struct {
 }
 
 func (sm *stateMachine) Start(s *session) {
+	s.log.OnEvent("state_machine: starting session state machine")
 	sm.pendingStop = false
 	sm.stopped = false
 
@@ -23,23 +24,26 @@ func (sm *stateMachine) Start(s *session) {
 
 func (sm *stateMachine) Connect(session *session) {
 	if !sm.IsSessionTime() {
-		session.log.OnEvent("Connection outside of session time")
+		session.log.OnEvent("state_machine: connection outside of session time")
 		sm.handleDisconnectState(session)
 		return
 	}
 
 	// No special logon logic needed for FIX Acceptors.
 	if !session.InitiateLogon {
+		session.log.OnEvent("state_machine: setting state to logon state")
 		sm.setState(session, logonState{})
 		return
 	}
 
 	if session.RefreshOnLogon {
+		session.log.OnEvent("state_machine: refreshing session store")
 		if err := session.store.Refresh(); err != nil {
 			session.logError(err)
 			return
 		}
 	}
+
 	session.log.OnEvent("Sending logon request")
 	if err := session.sendLogon(); err != nil {
 		session.logError(err)
@@ -47,6 +51,8 @@ func (sm *stateMachine) Connect(session *session) {
 	}
 
 	sm.setState(session, logonState{})
+	session.log.OnEvent("state_machine: setting state to logon state")
+
 	// Fire logon timeout event after the pre-configured delay period.
 	time.AfterFunc(session.LogonTimeout, func() { session.sessionEvent <- internal.LogonTimeout })
 }
@@ -144,6 +150,7 @@ func (sm *stateMachine) CheckSessionTime(session *session, now time.Time) {
 func (sm *stateMachine) setState(session *session, nextState sessionState) {
 	if !nextState.IsConnected() {
 		if sm.IsConnected() {
+			session.log.OnEvent("disconnecting session - next state is not connected")
 			sm.handleDisconnectState(session)
 		}
 
@@ -177,6 +184,8 @@ func (sm *stateMachine) handleDisconnectState(s *session) {
 
 	if doOnLogout {
 		s.application.OnLogout(s.sessionID)
+	} else {
+		s.log.OnEvent("skipping calling onLogout handler")
 	}
 
 	s.onDisconnect()
@@ -245,13 +254,16 @@ func (connectedNotLoggedOn) ShutdownNow(*session) {}
 type loggedOn struct{ connected }
 
 func (loggedOn) IsLoggedOn() bool { return true }
+
 func (loggedOn) ShutdownNow(s *session) {
+	s.log.OnEvent("ShutdownNow Called")
 	if err := s.sendLogout(""); err != nil {
 		s.logError(err)
 	}
 }
 
 func (loggedOn) Stop(s *session) (nextState sessionState) {
+	s.log.OnEvent("Stop Called")
 	if err := s.initiateLogout(""); err != nil {
 		return handleStateError(s, err)
 	}

@@ -36,11 +36,15 @@ func (state inSession) FixMsgIn(session *session, msg *Message) sessionState {
 	case bytes.Equal(msgTypeTestRequest, msgType):
 		return state.handleTestRequest(session, msg)
 	default:
+		// session.verify -> session.verifySelect -> session.fromCallback -> session.fromApp/fromAdmin
+		// if we block the application handler, this code blocks as well
 		if err := session.verify(msg); err != nil {
 			return state.processReject(session, msg, err)
 		}
 	}
 
+	// after processing the message, increment the next target seq num
+	// we expect to recieve
 	if err := session.store.IncrNextTargetMsgSeqNum(); err != nil {
 		return handleStateError(session, err)
 	}
