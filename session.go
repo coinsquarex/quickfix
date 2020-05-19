@@ -321,7 +321,7 @@ func (s *session) prepMessageForSend(msg *Message, inReplyTo *Message) (msgBytes
 	msgBytes = msg.build()
 	err = s.persist(seqNum, msgBytes)
 	if err != nil {
-		s.log.OnEventf("failed to persist msg: [%d] %s", seqNum, msgBytes)
+		s.log.OnEventf(logWithTracef("failed to persist msg: [%d] %s", seqNum, msgBytes))
 	}
 
 	return
