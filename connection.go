@@ -25,7 +25,6 @@ func readLoop(parser *parser, msgIn chan fixIn) {
 	for {
 		msg, err := parser.ReadMessage()
 		if err != nil {
-			// log.OnEvent(logWithTrace("exiting connection writeloop"))
 			return
 		}
 		msgIn <- fixIn{msg, parser.lastRead}
