@@ -176,10 +176,15 @@ func (i *Initiator) handleConnection(session *session, tlsConfig *tls.Config, di
 			goto reconnect
 		}
 
+		// Start goroutine to read from TCP connection
 		go readLoop(newParser(bufio.NewReader(netConn)), msgIn)
 		disconnected = make(chan interface{})
+
+		// Start goroutine to write to TCP connection
+		// In for loop, reads from msgOut and writes to connection
 		go func() {
 			writeLoop(netConn, msgOut, session.log)
+
 			if err := netConn.Close(); err != nil {
 				session.log.OnEvent(err.Error())
 			}
