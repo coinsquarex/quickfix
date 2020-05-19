@@ -417,10 +417,10 @@ func (s *session) handleLogon(msg *Message) error {
 		if s.RefreshOnLogon {
 			s.log.OnEvent(logWithTrace("refreshing session store"))
 			if err := s.store.Refresh(); err != nil {
-				s.log.OnEventf("Failed to refresh message store: %+v", err.Error())
+				s.log.OnEventf(logWithTracef("Failed to refresh message store: %+v", err.Error()))
 				return err
 			}
-			s.log.OnEvent("Message store refreshed")
+			s.log.OnEvent(logWithTrace("Message store refreshed"))
 		}
 	}
 

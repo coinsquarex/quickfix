@@ -24,7 +24,7 @@ func (sm *stateMachine) Start(s *session) {
 
 func (sm *stateMachine) Connect(session *session) {
 	if !sm.IsSessionTime() {
-		session.log.OnEvent(logWithTrace("state_machine: connection outside of session time"))
+		session.log.OnEvent("Connection outside of session time")
 		sm.handleDisconnectState(session)
 		return
 	}
