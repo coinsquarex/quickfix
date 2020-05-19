@@ -14,7 +14,7 @@ type stateMachine struct {
 }
 
 func (sm *stateMachine) Start(s *session) {
-	s.log.OnEvent("state_machine: starting session state machine")
+	s.log.OnEvent(logWithTrace("state_machine: starting session state machine"))
 	sm.pendingStop = false
 	sm.stopped = false
 
@@ -24,20 +24,20 @@ func (sm *stateMachine) Start(s *session) {
 
 func (sm *stateMachine) Connect(session *session) {
 	if !sm.IsSessionTime() {
-		session.log.OnEvent("state_machine: connection outside of session time")
+		session.log.OnEvent(logWithTrace("state_machine: connection outside of session time"))
 		sm.handleDisconnectState(session)
 		return
 	}
 
 	// No special logon logic needed for FIX Acceptors.
 	if !session.InitiateLogon {
-		session.log.OnEvent("state_machine: setting state to logon state")
+		session.log.OnEvent(logWithTrace("state_machine: setting state to logon state"))
 		sm.setState(session, logonState{})
 		return
 	}
 
 	if session.RefreshOnLogon {
-		session.log.OnEvent("state_machine: refreshing session store")
+		session.log.OnEvent(logWithTrace("state_machine: refreshing session store"))
 		if err := session.store.Refresh(); err != nil {
 			session.logError(err)
 			return
@@ -51,7 +51,7 @@ func (sm *stateMachine) Connect(session *session) {
 	}
 
 	sm.setState(session, logonState{})
-	session.log.OnEvent("state_machine: setting state to logon state")
+	session.log.OnEvent(logWithTrace("state_machine: setting state to logon state"))
 
 	// Fire logon timeout event after the pre-configured delay period.
 	time.AfterFunc(session.LogonTimeout, func() { session.sessionEvent <- internal.LogonTimeout })
@@ -68,6 +68,7 @@ func (sm *stateMachine) Stopped() bool {
 
 func (sm *stateMachine) Disconnected(session *session) {
 	if sm.IsConnected() {
+		session.log.OnEvent(logWithTrace("state_machine: setting state to latent state"))
 		sm.setState(session, latentState{})
 	}
 }
@@ -122,6 +123,7 @@ func (sm *stateMachine) CheckSessionTime(session *session, now time.Time) {
 			session.log.OnEvent("Not in session")
 		}
 
+		session.log.OnEvent(logWithTrace("state_machine: calling shutdown now since not in session"))
 		sm.State.ShutdownNow(session)
 		sm.setState(session, notSessionTime{})
 
@@ -150,7 +152,7 @@ func (sm *stateMachine) CheckSessionTime(session *session, now time.Time) {
 func (sm *stateMachine) setState(session *session, nextState sessionState) {
 	if !nextState.IsConnected() {
 		if sm.IsConnected() {
-			session.log.OnEvent("disconnecting session - next state is not connected")
+			session.log.OnEvent(logWithTrace("state_machine: disconnecting session as next state is not connected type"))
 			sm.handleDisconnectState(session)
 		}
 
@@ -160,6 +162,7 @@ func (sm *stateMachine) setState(session *session, nextState sessionState) {
 		}
 	}
 
+	session.log.OnEvent(logWithTracef("state_machine: set state: %s (current: %s)", nextState.String(), sm.State.String()))
 	sm.State = nextState
 }
 
@@ -171,6 +174,8 @@ func (sm *stateMachine) notifyInSessionTime() {
 }
 
 func (sm *stateMachine) handleDisconnectState(s *session) {
+	s.log.OnEvent(logWithTrace("state_machine: handle disconnect state"))
+
 	doOnLogout := s.IsLoggedOn()
 
 	switch s.State.(type) {
@@ -185,7 +190,7 @@ func (sm *stateMachine) handleDisconnectState(s *session) {
 	if doOnLogout {
 		s.application.OnLogout(s.sessionID)
 	} else {
-		s.log.OnEvent("skipping calling onLogout handler")
+		s.log.OnEvent(logWithTrace("state_machine: skipping calling onLogout handler"))
 	}
 
 	s.onDisconnect()
@@ -256,14 +261,14 @@ type loggedOn struct{ connected }
 func (loggedOn) IsLoggedOn() bool { return true }
 
 func (loggedOn) ShutdownNow(s *session) {
-	s.log.OnEvent("ShutdownNow Called")
+	s.log.OnEvent(logWithTrace("logged_on_state: calling ShutdownNow()"))
 	if err := s.sendLogout(""); err != nil {
 		s.logError(err)
 	}
 }
 
 func (loggedOn) Stop(s *session) (nextState sessionState) {
-	s.log.OnEvent("Stop Called")
+	s.log.OnEvent(logWithTrace("logged_on_state: calling Stop()"))
 	if err := s.initiateLogout(""); err != nil {
 		return handleStateError(s, err)
 	}

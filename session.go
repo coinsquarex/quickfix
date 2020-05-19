@@ -255,6 +255,7 @@ func (s *session) dropAndReset() error {
 	defer s.sendMutex.Unlock()
 
 	s.dropQueued()
+	s.log.OnEvent(logWithTrace("resetting session store"))
 	return s.store.Reset()
 }
 
@@ -301,6 +302,7 @@ func (s *session) prepMessageForSend(msg *Message, inReplyTo *Message) (msgBytes
 			}
 
 			if resetSeqNumFlag.Bool() {
+				s.log.OnEvent(logWithTrace("resetting session store"))
 				if err = s.store.Reset(); err != nil {
 					return
 				}
@@ -332,6 +334,7 @@ func (s *session) persist(seqNum int, msgBytes []byte) error {
 		}
 	}
 
+	s.log.OnEvent(logWithTrace("incrementing next sender msg sequence number"))
 	return s.store.IncrNextSenderMsgSeqNum()
 }
 
@@ -412,6 +415,7 @@ func (s *session) handleLogon(msg *Message) error {
 		resetStore = s.ResetOnLogon
 
 		if s.RefreshOnLogon {
+			s.log.OnEvent(logWithTrace("refreshing session store"))
 			if err := s.store.Refresh(); err != nil {
 				s.log.OnEventf("Failed to refresh message store: %+v", err.Error())
 				return err
@@ -431,6 +435,7 @@ func (s *session) handleLogon(msg *Message) error {
 	}
 
 	if resetStore {
+		s.log.OnEvent(logWithTrace("resetting session store"))
 		if err := s.store.Reset(); err != nil {
 			return err
 		}
@@ -460,6 +465,7 @@ func (s *session) handleLogon(msg *Message) error {
 		return err
 	}
 
+	s.log.OnEvent(logWithTrace("incrementing next target msg sequence number"))
 	return s.store.IncrNextTargetMsgSeqNum()
 }
 
@@ -742,6 +748,7 @@ func (s *session) run() {
 	ticker := time.NewTicker(time.Second)
 
 	defer func() {
+		s.log.OnEvent(logWithTrace("session_run_loop: session stopped"))
 		s.stateTimer.Stop()
 		s.peerTimer.Stop()
 		ticker.Stop()
@@ -762,8 +769,10 @@ func (s *session) run() {
 
 		case fixIn, ok := <-s.messageIn:
 			if !ok {
+				s.log.OnEvent(logWithTrace("session_run_loop: messageIn chan closed or done, caling s.Disconnected()"))
 				s.Disconnected(s)
 			} else {
+				// calls session state_machine.Incoming()
 				s.Incoming(s, fixIn)
 			}
 

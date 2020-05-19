@@ -45,6 +45,8 @@ func (state inSession) FixMsgIn(session *session, msg *Message) sessionState {
 
 	// after processing the message, increment the next target seq num
 	// we expect to recieve
+	// if error, handleStateError returns latent state as next state for the session
+	session.log.OnEvent(logWithTrace("incrementing next target msg sequence number"))
 	if err := session.store.IncrNextTargetMsgSeqNum(); err != nil {
 		return handleStateError(session, err)
 	}
@@ -91,6 +93,7 @@ func (state inSession) handleLogout(session *session, msg *Message) (nextState s
 		session.log.OnEvent("Received logout response")
 	}
 
+	session.log.OnEvent(logWithTrace("incrementing next target msg sequence number"))
 	if err := session.store.IncrNextTargetMsgSeqNum(); err != nil {
 		session.logError(err)
 	}
@@ -120,6 +123,7 @@ func (state inSession) handleTestRequest(session *session, msg *Message) (nextSt
 		}
 	}
 
+	session.log.OnEvent(logWithTrace("incrementing next target msg sequence number"))
 	if err := session.store.IncrNextTargetMsgSeqNum(); err != nil {
 		return handleStateError(session, err)
 	}
@@ -145,6 +149,7 @@ func (state inSession) handleSequenceReset(session *session, msg *Message) (next
 
 		switch {
 		case newSeqNo > expectedSeqNum:
+			session.log.OnEvent(logWithTracef("setting next target msg seq num: %d", int(newSeqNo)))
 			if err := session.store.SetNextTargetMsgSeqNum(int(newSeqNo)); err != nil {
 				return handleStateError(session, err)
 			}
@@ -199,6 +204,7 @@ func (state inSession) handleResendRequest(session *session, msg *Message) (next
 		return state
 	}
 
+	session.log.OnEvent(logWithTrace("incrementing next target msg sequence number"))
 	if err := session.store.IncrNextTargetMsgSeqNum(); err != nil {
 		return handleStateError(session, err)
 	}
@@ -308,6 +314,7 @@ func (state inSession) processReject(session *session, msg *Message, rej Message
 			return handleStateError(session, err)
 		}
 
+		session.log.OnEvent(logWithTrace("incrementing next target msg sequence number"))
 		if err := session.store.IncrNextTargetMsgSeqNum(); err != nil {
 			return handleStateError(session, err)
 		}

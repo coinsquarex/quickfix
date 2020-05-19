@@ -31,6 +31,10 @@ type LogFactory interface {
 	CreateSessionLog(sessionID SessionID) (Log, error)
 }
 
+func logWithTracef(format string, a ...interface{}) string {
+	return logWithTrace(fmt.Sprintf(format, a...))
+}
+
 func logWithTrace(msg string) string {
 	pc := make([]uintptr, 10) // at least 1 entry needed
 	runtime.Callers(2, pc)
