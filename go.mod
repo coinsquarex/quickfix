@@ -1,4 +1,4 @@
-module github.com/quickfixgo/quickfix
+module github.com/coinsquarex/quickfix
 
 go 1.13
 

@@ -1,3 +1,5 @@
+github.com/coinsquarex/quickfix v0.6.0 h1:wiwORMihMPV5gh1Ffohsl93aIGGWpyJ7MvHWSENIBBw=
+github.com/coinsquarex/quickfix v0.6.0/go.mod h1:9FvIX8D1jZvsrhJi1xpoSOLyvC82zz/PA4Myi7xX5Jo=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8 h1:DujepqpGd1hyOd7aW59XpK7Qymp8iy83xq74fLr21is=
