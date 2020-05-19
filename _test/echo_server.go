@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/quickfixgo/quickfix"
+	"github.com/coinsquarex/quickfix"
 	"github.com/coinsquarex/quickfix/gen/field"
 	"github.com/coinsquarex/quickfix/gen/tag"
 )
