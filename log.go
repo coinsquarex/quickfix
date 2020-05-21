@@ -2,7 +2,7 @@ package quickfix
 
 import (
 	"fmt"
-	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -32,16 +32,20 @@ type LogFactory interface {
 }
 
 func logWithTracef(format string, a ...interface{}) string {
-	return logWithTrace(fmt.Sprintf(format, a...))
+	msg := fmt.Sprintf(format, a...)
+	return logWithTracePCSkip(msg, 3)
 }
 
 func logWithTrace(msg string) string {
+	return logWithTracePCSkip(msg, 3)
+}
+
+func logWithTracePCSkip(msg string, pcSkip int) string {
 	pc := make([]uintptr, 10) // at least 1 entry needed
-	runtime.Callers(2, pc)
+	runtime.Callers(pcSkip, pc)
 	f := runtime.FuncForPC(pc[0])
 	file, line := f.FileLine(pc[0])
-	dir, _ := os.Getwd()
-	file = strings.ReplaceAll(file, dir, "")
+	file = filepath.Base(file)
 	funcName := strings.ReplaceAll(f.Name(), getModuleName(pc[0]), "")
 	return fmt.Sprintf("%s (%s:%d%s)", msg, file, line, funcName)
 }
