@@ -177,7 +177,7 @@ func (i *Initiator) handleConnection(session *session, tlsConfig *tls.Config, di
 		}
 
 		// Start goroutine to read from TCP connection
-		go readLoop(newParser(bufio.NewReader(netConn)), msgIn)
+		go readLoop(newParser(bufio.NewReader(netConn)), msgIn, session.log)
 		disconnected = make(chan interface{})
 
 		// Start goroutine to write to TCP connection

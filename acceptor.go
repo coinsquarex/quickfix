@@ -155,6 +155,7 @@ func (a *Acceptor) listenForConnections() {
 	for {
 		netConn, err := a.listener.Accept()
 		if err != nil {
+			a.globalLog.OnEvent(logWithTracef("listener accept error: %s", err.Error()))
 			return
 		}
 
@@ -284,7 +285,7 @@ func (a *Acceptor) handleConnection(netConn net.Conn) {
 
 	go func() {
 		msgIn <- fixIn{msgBytes, parser.lastRead}
-		readLoop(parser, msgIn)
+		readLoop(parser, msgIn, a.globalLog)
 	}()
 
 	writeLoop(netConn, msgOut, a.globalLog)
