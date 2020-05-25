@@ -19,12 +19,17 @@ func writeLoop(connection io.Writer, messageOut chan []byte, log Log) {
 	}
 }
 
-func readLoop(parser *parser, msgIn chan fixIn) {
+func readLoop(parser *parser, msgIn chan fixIn, log Log) {
 	defer close(msgIn)
 
 	for {
 		msg, err := parser.ReadMessage()
 		if err != nil {
+			if err == io.EOF {
+				log.OnEvent(logWithTracef("read loop connection terminatied: %s", err.Error()))
+			} else {
+				log.OnEvent(logWithTracef("read loop error: %s", err.Error()))
+			}
 			return
 		}
 		msgIn <- fixIn{msg, parser.lastRead}
